@@ -1,0 +1,8 @@
+{
+    "name": "Memory Search Tool",
+    "version": "1.0.0",
+    "description": "Добавляет функцию search_history для умного поиска по локальной базе сообщений.",
+    "author": "your_name",
+    "entry": "index.js",
+    "settings": "settings.html"
+}

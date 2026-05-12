@@ -1,0 +1,31 @@
+<div style="padding: 1em; font-family: sans-serif;">
+    <label style="display: flex; align-items: center; gap: 0.5em; margin-bottom: 1em;">
+        <input type="checkbox" id="memorySearchEnabled" name="enabled" 
+               onchange="saveSettings()" 
+               {% if settings.enabled %}checked{% endif %}>
+        <strong>Включить поиск по памяти</strong>
+    </label>
+
+    <label style="display: block; margin-bottom: 0.3em;">
+        IP:порт сервера поиска:
+    </label>
+    <input type="text" id="serverUrl" name="serverUrl" 
+           placeholder="http://192.168.1.5:8765"
+           value="{{ settings.serverUrl }}"
+           style="width: 100%; padding: 0.4em;"
+           onchange="saveSettings()">
+
+    <script>
+        // Функция сохранения вызывается при любом изменении
+        async function saveSettings() {
+            const enabled = document.getElementById('memorySearchEnabled').checked;
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+
+            // Отправляем в ST
+            await window.extSettingsDispatch({
+                enabled: enabled,
+                serverUrl: serverUrl
+            });
+        }
+    </script>
+</div>
