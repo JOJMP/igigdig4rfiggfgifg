@@ -1,67 +1,94 @@
-// index.js — финальная рабочая версия без import
+// index.js (исправленная версия)
+const PLUGIN_NAME = 'memorySearch';
 
-const FUNCTION_TOOLS_SETTING_KEY = 'customFunctionCallTools';
-
-const toolDefinition = {
-    name: 'search_history',
-    description: 'Поиск информации о прошлых событиях по смыслу. Возвращает только факты, релевантные текущему запросу.',
-    parameters: {
-        type: 'object',
-        properties: {
-            query: {
-                type: 'string',
-                description: 'Тема, вопрос или ключевые слова для поиска.'
-            }
-        },
-        required: ['query']
-    },
-    url: '',   // заполнится из настроек
-    method: 'POST'
+// Настройки по умолчанию
+const defaultSettings = {
+    enabled: false,
+    serverUrl: 'http://127.0.0.1:8765',
 };
 
-function syncTool() {
-    const settings = extensionSettings.memorySearch;
-    if (!settings) return;
-
-    if (!settings.enabled) {
-        removeTool();
-        return;
+// Загружаем настройки или создаем дефолтные
+function loadSettings() {
+    if (!extensionSettings[PLUGIN_NAME]) {
+        extensionSettings[PLUGIN_NAME] = { ...defaultSettings };
     }
-
-    const baseUrl = settings.serverUrl.replace(/\/+$/, '');
-    const tool = { ...toolDefinition, url: baseUrl + '/search' };
-    upsertTool(tool);
+    return extensionSettings[PLUGIN_NAME];
 }
 
-function upsertTool(tool) {
-    let tools = JSON.parse(localStorage.getItem(FUNCTION_TOOLS_SETTING_KEY) || '[]');
-    tools = tools.filter(t => t.name !== tool.name);
-    tools.push(tool);
-    localStorage.setItem(FUNCTION_TOOLS_SETTING_KEY, JSON.stringify(tools));
+// Регистрирует функцию search_history в ST
+function registerTool() {
+    const settings = loadSettings();
+    const context = SillyTavern.getContext();
 
-    // Оповещаем ST, что настройки изменились
-    window.dispatchEvent(new CustomEvent('extensionSettingsUpdated', {
-        detail: { settingKey: FUNCTION_TOOLS_SETTING_KEY }
-    }));
+    // Удаляем старую версию функции, если была
+    try {
+        context.unregisterFunctionTool('search_history');
+    } catch (e) { /* Игнорируем, если нечего удалять */ }
+
+    context.registerFunctionTool({
+        name: 'search_history',
+        displayName: 'Memory Search',
+        description: 'Ищи в долговременной памяти информацию о прошлых событиях, которая нужна для ответа.',
+        parameters: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'Ключевая тема или поисковый запрос.',
+                },
+            },
+            required: ['query'],
+        },
+        // Это и есть та самая функция, которую вызовет ST
+        action: async (args) => {
+            const query = args.query;
+            const endpoint = settings.serverUrl.replace(/\/+$/, '') + '/search';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка сети: ${response.status}`);
+                }
+
+                const data = await response.json();
+                // Возвращаем строку с результатами, которая попадет в контекст модели
+                return JSON.stringify(data);
+            } catch (error) {
+                console.error('[MemorySearch] Ошибка поиска:', error);
+                return 'Ошибка при обращении к памяти.';
+            }
+        },
+    });
 }
 
-function removeTool() {
-    let tools = JSON.parse(localStorage.getItem(FUNCTION_TOOLS_SETTING_KEY) || '[]');
-    tools = tools.filter(t => t.name !== 'search_history');
-    localStorage.setItem(FUNCTION_TOOLS_SETTING_KEY, JSON.stringify(tools));
-    window.dispatchEvent(new CustomEvent('extensionSettingsUpdated', {
-        detail: { settingKey: FUNCTION_TOOLS_SETTING_KEY }
-    }));
-}
-
+// Запуск расширения
 export async function load() {
-    syncTool();
+    const settings = loadSettings();
+    if (settings.enabled) {
+        registerTool();
+    }
 }
 
+// Выгрузка расширения
 export async function unload() {
-    removeTool();
+    try {
+        SillyTavern.getContext().unregisterFunctionTool('search_history');
+    } catch (e) { /* Игнорируем */ }
 }
 
+// Обработчик изменения настроек
 export function onSettingsChanged() {
-    syncTool();
+    const settings = loadSettings();
+    if (settings.enabled) {
+        registerTool();
+    } else {
+        try {
+            SillyTavern.getContext().unregisterFunctionTool('search_history');
+        } catch (e) { /* Игнорируем */ }
+    }
 }
