@@ -1,8 +1,10 @@
 {
-    "name": "Memory Search Tool",
-    "version": "1.0.0",
-    "description": "Добавляет функцию search_history для умного поиска по локальной базе сообщений.",
-    "author": "jojmp",
-    "entry": "index.js",
-    "settings": "settings.html"
+  "display_name": "Fetch Retry",
+  "loading_order": 1,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "author": "Jxxy",
+  "version": "1.2.5",
+  "homePage": "https://github.com/JOJMP/igigdig4rfiggfgifg"
 }
